@@ -1,25 +1,205 @@
+/* Power 4 — 100% Go (no JS) — Gamified + Levels + Inverse Gravity */
+
 :root{
-    --bg:#0b0f1a; --card:#111827; --muted:#94a3b8; --accent:#2563eb;
-    --grid:#1f2937; --hole:#0b1220; --red:#ef4444; --yellow:#f59e0b; --btn:#0f172a;
+    --bg:#0b0f1a;
+    --surface:#0f172a;
+    --card:#111827;
+    --muted:#94a3b8;
+    --text:#e5e7eb;
+    --accent:#2563eb;
+    --grid:#1f2937;
+    --hole:#0b1220;
+    --red:#ef4444;
+    --yellow:#f59e0b;
+    --btn:#0f172a;
+    --btn-border:#1f2937;
+    --btn-hover:#253045;
+    --shadow:0 10px 30px rgba(0,0,0,.35);
+    --invert-accent:#a855f7;
 }
-*{box-sizing:border-box} html,body{height:100%}
-body{margin:0;font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#0b0f1a;color:#e5e7eb}
-.topbar{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid #111827;background:#0b0f1aAA;backdrop-filter:blur(6px)}
-.controls{display:flex;gap:10px;align-items:center}
-select,button{background:var(--btn);color:#e5e7eb;border:1px solid #1f2937;padding:8px 12px;border-radius:10px;cursor:pointer}
-button:hover,select:hover{border-color:var(--accent)}
-.container{max-width:900px;margin:28px auto;padding:0 16px}
-.status{display:flex;justify-content:space-between;align-items:center;background:var(--card);padding:12px 16px;border-radius:14px;border:1px solid #1f2937}
-#playerLabel{color:var(--red)} #score{display:flex;gap:18px;color:var(--muted)}
-.board{margin:18px auto;display:grid;gap:10px;grid-template-columns:repeat(7,1fr);width:min(95vw,820px);padding:14px;border-radius:18px;background:linear-gradient(180deg,#0f1a2b 0%,#0b1220 100%);border:1px solid #1f2937;box-shadow:0 10px 30px rgba(0,0,0,.35)}
-.col{background:var(--grid);border-radius:12px;padding:10px;display:grid;gap:10px;grid-template-rows:repeat(6,1fr)}
-.cell{width:100%;aspect-ratio:1/1;border-radius:50%;background:radial-gradient(60% 60% at 30% 30%,#162036 0%,var(--hole) 100%);display:flex;align-items:center;justify-content:center}
-.piece{width:88%;height:88%;border-radius:50%;box-shadow:inset 0 6px 10px rgba(255,255,255,.15), inset 0 -12px 20px rgba(0,0,0,.35)}
-.piece.red{background:radial-gradient(circle at 35% 25%, #ff6b6b 0%, var(--red) 60%)}
-.piece.yellow{background:radial-gradient(circle at 35% 25%, #ffd166 0%, var(--yellow) 60%)}
-.controls-row{display:flex;gap:8px;justify-content:center;margin:12px 0}
-.controls-row form{display:inline}
-.controls-row button{min-width:44px}
-.winner{outline:3px solid var(--accent)}
-.footer{color:#64748b;text-align:center;padding:24px 12px;font-size:.9rem}
-.notice{background:#0f172a;border:1px solid #1f2937;border-radius:12px;padding:10px 14px;margin:10px 0;color:#d1d5db}
+
+*{box-sizing:border-box}
+html,body{height:100%}
+html{scroll-behavior:smooth}
+body{
+    margin:0; color:var(--text);
+    font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg);
+    overflow-x:hidden;
+}
+
+/* starry background layer */
+.bg-layer{
+    position:fixed; inset:0; z-index:-1;
+    background:
+            radial-gradient(1200px 600px at 70% -10%, rgba(18,33,60,.8) 0%, rgba(11,15,26,.9) 60%),
+            url('/static/bg-space.jpg') center/cover no-repeat;
+    filter:saturate(1.05) brightness(.95);
+}
+
+/* ===== Top Bar ===== */
+.topbar{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:16px 20px; border-bottom:1px solid #111827;
+    background:#0b0f1acc; backdrop-filter: blur(6px);
+    position:sticky; top:0; z-index:10;
+}
+.topbar h1{margin:0; font-size:1.1rem; font-weight:700; letter-spacing:.3px}
+
+.controls{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+/* safer: don't blanket-style radios/checkboxes in the global input rule */
+select, button, input:not([type="radio"]):not([type="checkbox"]) {
+    appearance:none;
+    background:var(--btn); color:var(--text);
+    border:1px solid var(--btn-border);
+    padding:9px 12px; border-radius:10px; cursor:pointer;
+    transition:border-color .15s ease, transform .06s ease, background .15s;
+    font-weight:600;
+}
+
+input{cursor:text}
+select:focus, button:focus, input:focus{outline:2px solid var(--accent); outline-offset:2px}
+button:hover, select:hover{border-color:var(--accent)}
+button:active{transform: translateY(1px)}
+/* === Fix radios/checkboxes being styled like text inputs === */
+input[type="radio"],
+input[type="checkbox"]{
+    appearance:auto;     /* restore default control */
+    background:transparent;
+    border:none;
+    padding:0;
+    width:auto;
+    height:auto;
+    cursor:pointer;
+}
+.start-form .inline{
+    display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+}
+.start-form .inline label{
+    display:inline-flex; align-items:center; gap:8px;
+    padding:6px 10px; border:1px solid var(--btn-border);
+    border-radius:10px; background:#0c1426;
+}
+.start-form .inline input[type="radio"]{ margin:0; }
+.start-form .hint{ color:#94a3b8; font-size:.9rem; }
+
+/* ===== Layout ===== */
+.container{max-width:1000px; margin:28px auto; padding:0 16px}
+
+.status{
+    display:flex; justify-content:space-between; align-items:center;
+    background:var(--card); padding:12px 16px; border-radius:14px;
+    border:1px solid #1f2937; box-shadow: var(--shadow);
+}
+#score{display:flex; gap:18px; color:var(--muted)}
+#playerLabel{font-weight:700}
+
+/* ===== Board ===== */
+.board{
+    margin:20px auto; display:grid; gap:10px;
+    grid-template-columns: repeat(7, 1fr); /* ajusté via HTML pour 8/9 colonnes aussi */
+    width:min(96vw, 900px);
+    padding:16px; border-radius:18px;
+    background:linear-gradient(180deg,#0f1a2b 0%,#0b1220 100%);
+    border:1px solid #1f2937; box-shadow: var(--shadow);
+}
+.col{
+    background:var(--grid); border-radius:12px; padding:10px;
+    display:grid; gap:10px; grid-template-rows: repeat(6, 1fr);
+    position: relative;
+}
+.cell{
+    width:100%; aspect-ratio:1/1; border-radius:50%;
+    background:radial-gradient(60% 60% at 30% 30%, #162036 0%, var(--hole) 100%);
+    display:flex; align-items:center; justify-content:center;
+    position:relative; overflow:hidden; border:1px solid #0e1628;
+}
+
+.piece{
+    width:88%; height:88%; border-radius:50%;
+    box-shadow:
+            inset 0 6px 10px rgba(255,255,255,.15),
+            inset 0 -12px 20px rgba(0,0,0,.35),
+            0 2px 4px rgba(0,0,0,.25);
+    animation: drop-in .5s cubic-bezier(.2,.8,.25,1) both;
+}
+.piece.red{    background:radial-gradient(circle at 35% 25%, #ff7676 0%, var(--red) 60%); }
+.piece.yellow{ background:radial-gradient(circle at 35% 25%, #ffd777 0%, var(--yellow) 60%); }
+.piece.block{
+    background: radial-gradient(circle at 35% 25%, #64748b 0%, #334155 60%);
+    box-shadow: inset 0 4px 8px rgba(255,255,255,.08), inset 0 -8px 14px rgba(0,0,0,.35);
+    animation:none;
+}
+
+/* animation (tous les pions s’animent au rechargement) */
+@keyframes drop-in{
+    0%   { transform: translateY(-120%) scale(.92); opacity: .0; }
+    65%  { transform: translateY(0)      scale(1.03); opacity: 1; }
+    80%  { transform: translateY(-6%); }
+    100% { transform: translateY(0)      scale(1); }
+}
+@media (prefers-reduced-motion: reduce){ .piece{ animation:none }}
+
+/* cellule gagnante */
+.winner{ outline:3px solid var(--accent); box-shadow:0 0 18px rgba(37,99,235,.4); }
+
+/* colonne cliquable */
+.col-form{ position:absolute; inset:0; }
+.col-hit{
+    position:absolute; inset:0; border:0; background:transparent; cursor:pointer; appearance:none;
+}
+.col-hit:hover{ outline:2px solid var(--btn-hover); outline-offset:-6px; border-radius:12px; }
+.col-hit:disabled{ cursor:not-allowed; }
+
+/* Cards, notices */
+.card{
+    background:var(--surface); border:1px solid var(--btn-border);
+    border-radius:16px; padding:18px; box-shadow: var(--shadow);
+}
+.card.center{ text-align:center }
+.notice{
+    background:rgba(15,23,42,.75); border:1px solid #1f2937;
+    border-radius:12px; padding:10px 14px; margin:12px 0; color:#d1d5db;
+}
+.notice.invert{ border-color:#3b0764; color:#e9d5ff; }
+
+/* start form */
+.start-form .row{ display:flex; gap:12px; align-items:center; margin:10px 0 }
+.start-form label{ min-width:130px; color:#cbd5e1 }
+.start-form input{ min-width:220px }
+
+/* badges / footer */
+.badge{
+    display:inline-flex; align-items:center; gap:6px;
+    background:#0f172a; color:#d1d5db; border:1px solid #1f2937;
+    padding:6px 10px; border-radius:999px; font-weight:600;
+}
+.footer{ color:#7b8393; text-align:center; padding:24px 12px; font-size:.92rem; }
+
+/* gravité inversée: tint violet pour ressentir le switch */
+.gravity-inverse .bg-layer{ filter:hue-rotate(30deg) saturate(1.1) brightness(.98); }
+.gravity-inverse .notice{ border-color:#3b0764; }
+.gravity-inverse .winner{ outline-color: var(--invert-accent); box-shadow:0 0 18px rgba(168,85,247,.45); }
+.start-form .inline{ display:flex; gap:12px; flex-wrap:wrap; align-items:center }
+.btn-primary{ background:var(--accent); border-color:var(--accent); color:white }
+.btn-primary:hover{ filter:brightness(1.05) }
+.btn-secondary{ background:#0c1426; border-color:var(--btn-border); }
+.btn-secondary:hover{ border-color:var(--accent) }
+
+/* responsive */
+@media (max-width: 720px){
+    .status{flex-direction:column; gap:8px; align-items:flex-start}
+    .board{gap:8px; padding:12px}
+    .col{gap:8px; padding:8px}
+}
+@media (max-width: 420px){
+    .topbar{padding:12px 14px}
+    .topbar h1{font-size:1rem}
+    .container{margin:18px auto}
+    .board{width:95vw}
+}
+.col-form, .col-hit {
+    position: absolute;
+    inset: 0;
+    z-index: 5; /* ensure button covers pieces */
+}

@@ -1,0 +1,61 @@
+{{define "start_topright"}}{{end}}
+
+{{define "start_content"}}
+<section class="card">
+    <h2>Démarrer une partie</h2>
+
+    <!-- novalidate disables HTML5 popups; server trims/validates -->
+    <form method="post" action="/start" class="start-form" novalidate>
+        <div class="row">
+            <label>Mode</label>
+            <select name="mode" required>
+                <option value="local">Local (2 joueurs sur ce PC)</option>
+                <option value="ai">Contre l’IA</option>
+                <option value="online">En ligne (2 PCs)</option>
+            </select>
+        </div>
+
+        <div class="row">
+            <label>Joueur Rouge</label>
+            <input type="text" name="player1" placeholder="Rouge" value="{{.Player1}}" />
+        </div>
+        <div class="row">
+            <label>Joueur Jaune</label>
+            <input type="text" name="player2" placeholder="Jaune" value="{{.Player2}}" />
+        </div>
+
+        <div class="row">
+            <label>Difficulté</label>
+            <select name="difficulty">
+                <option value="easy"   {{if eq .Difficulty "easy"}}selected{{end}}>Easy — 6×7 • 3 blocs</option>
+                <option value="normal" {{if eq .Difficulty "normal"}}selected{{end}}>Normal — 6×9 • 5 blocs</option>
+                <option value="hard"   {{if eq .Difficulty "hard"}}selected{{end}}>Hard — 7×8 • 7 blocs</option>
+            </select>
+        </div>
+
+        <details class="row">
+            <summary>Options en ligne</summary>
+            <div class="inline">
+                <!-- IMPORTANT: no pattern; maxlength only -->
+                <input type="text" name="lobby_code"
+                       placeholder="Code pour Rejoindre (ex: 9RR2)"
+                       maxlength="10" autocomplete="off" autocapitalize="characters" />
+                <!-- Create: never validate code field -->
+                <button type="submit" name="online_action" value="create" class="btn-secondary" formnovalidate>
+                    🆕 Créer une salle (code auto)
+                </button>
+                <!-- Join submits normally; server uppercases/validates -->
+                <button type="submit" name="online_action" value="join" class="btn-secondary">
+                    🔗 Rejoindre (avec code)
+                </button>
+            </div>
+            <div class="hint">Ces boutons utilisent automatiquement le mode <em>En ligne</em>.</div>
+        </details>
+
+        <div class="row">
+            <!-- Big button also bypasses browser validation -->
+            <button type="submit" class="btn-primary" formnovalidate>🚀 Lancer la partie</button>
+        </div>
+    </form>
+</section>
+{{end}}

@@ -8,7 +8,7 @@ NEED_BUILD=0
 
 [ -f "$BIN" ] || NEED_BUILD=1
 if [ "$NEED_BUILD" -eq 0 ] && find . -type f -name '*.go' -newer "$BIN" | grep -q .; then NEED_BUILD=1; fi
-if [ "$NEED_BUILD" -eq 0 ] && find static templates -type f -newer "$BIN" 2>/dev/null | grep -q .; then NEED_BUILD=1; fi
+if [ "$NEED_BUILD" -eq 0 ] && find templates static -type f -newer "$BIN" 2>/dev/null | grep -q .; then NEED_BUILD=1; fi
 
 if [ "$NEED_BUILD" -eq 1 ]; then
   echo "[build] Building puissance4-go..."

@@ -1,0 +1,139 @@
+{{define "game_topright"}}
+<div class="badge">🎯 {{.Difficulty}}</div>
+{{end}}
+
+{{define "game_content"}}
+{{$root := .}}
+
+<section class="status">
+    <div>Au tour de :
+        <span id="playerLabel" style="color:{{if eq .CurrentStr "R"}}var(--red){{else}}var(--yellow){{end}};">
+        {{if eq .CurrentStr "R"}}{{.P1}}{{else}}{{.P2}}{{end}}
+        </span>
+    </div>
+    <div id="score">
+        <span>🔴 {{.P1}}: <strong>{{.Scores.R}}</strong></span>
+        <span>🟡 {{.P2}}: <strong>{{.Scores.Y}}</strong></span>
+    </div>
+    {{if .IsOnline}}
+    <div class="badge">Salle: <strong>{{.LobbyCode}}</strong></div>
+    {{end}}
+</section>
+
+{{/* ---- Sounds (MP3) ---- */}}
+<audio id="sndClick" preload="auto">
+    <source src="/static/sounds/click.mp3" type="audio/mpeg">
+</audio>
+<audio id="sndDrop" preload="auto">
+    <source src="/static/sounds/piece_drop.mp3" type="audio/mpeg">
+</audio>
+<audio id="sndRise" preload="auto">
+    <source src="/static/sounds/piece_rise.mp3" type="audio/mpeg">
+</audio>
+<!-- NEW: start sound -->
+<audio id="sndStart" preload="auto">
+    <source src="/static/sounds/start.mp3" type="audio/mpeg">
+</audio>
+
+{{if .GravityUp}}
+<div class="notice invert">🧲 Gravité inversée (les pions montent) — (tous les 5 tours)</div>
+{{else}}
+<div class="notice">⤵️ Gravité normale (les pions descendent) — (tous les 5 tours)</div>
+{{end}}
+
+<section class="board" aria-label="Board" role="grid"
+         style="grid-template-columns: repeat({{len .Cols}}, 1fr);">
+    {{range $c := .Cols}}
+    <div class="col" style="grid-template-rows: repeat({{len $root.Rows}}, 1fr);">
+        {{range $r := $root.Rows}}
+        {{$cell := index (index $root.Grid $r) $c}}
+        <div class="cell {{if index $root.Winning $r $c}}winner{{end}}">
+            {{if eq $cell 82}}<div class="piece red"></div>{{end}}    <!-- 'R' -->
+            {{if eq $cell 89}}<div class="piece yellow"></div>{{end}} <!-- 'Y' -->
+            {{if eq $cell 88}}<div class="piece block"></div>{{end}}  <!-- 'X' -->
+        </div>
+        {{end}}
+
+        <form method="post" action="{{if $root.IsOnline}}/online/play{{else}}/play{{end}}" class="col-form">
+            {{if $root.IsOnline}}
+            <input type="hidden" name="code" value="{{$root.LobbyCode}}">
+            <input type="hidden" name="side" value="{{if $root.ThisIsRed}}R{{else}}Y{{end}}">
+            {{end}}
+            <button
+                    type="submit"
+                    name="col"
+                    value="{{$c}}"
+                    class="col-hit"
+                    {{if index $root.Disabled $c}}disabled{{end}}
+                    title="Déposer dans la colonne {{$c}}">
+            </button>
+        </form>
+    </div>
+    {{end}}
+</section>
+
+<script>
+    (function () {
+        /* ---------- Sounds ---------- */
+        const sndClick = document.getElementById("sndClick");
+        const sndDrop  = document.getElementById("sndDrop");
+        const sndRise  = document.getElementById("sndRise");
+        const sndStart = document.getElementById("sndStart");
+
+        // Unlock audio on first user gesture (mobile autoplay policies)
+        const arm = () => {
+            [sndClick, sndDrop, sndRise, sndStart].forEach(a => {
+                try { a.muted = false; a.play().then(() => a.pause()).catch(()=>{}); } catch(_) {}
+            });
+        };
+        window.addEventListener("pointerdown", arm, { once: true });
+
+        // NEW: play start sound at the beginning of a match
+        const shouldStart = {{if .PlayStart}}true{{else}}false{{end}};
+        if (shouldStart) {
+            try { sndStart.currentTime = 0; sndStart.play(); } catch(_) {}
+        }
+
+        // Play click when user presses a column; also mark that we initiated a move
+        const nowTurns = {{.Turns}};
+        document.querySelectorAll(".col-hit").forEach(btn => {
+            btn.addEventListener("click", () => {
+                try { sndClick.currentTime = 0; sndClick.play(); } catch(_) {}
+                // Remember we submitted at this turn count; after reload we expect nowTurns+1
+                sessionStorage.setItem("movedTurns", String(nowTurns));
+            });
+        });
+
+        // After reload: if a move just happened from this browser, play drop/rise
+        const stored = parseInt(sessionStorage.getItem("movedTurns") || "-1", 10);
+        if (!Number.isNaN(stored) && stored === nowTurns - 1) {
+            const gravUp = {{if .GravityUp}}true{{else}}false{{end}};
+            try {
+                if (gravUp) { sndRise.currentTime = 0; sndRise.play(); }
+                else        { sndDrop.currentTime = 0; sndDrop.play(); }
+            } catch(_) {}
+            sessionStorage.removeItem("movedTurns");
+        }
+
+        /* ---------- Online polling ---------- */
+        {{if .IsOnline}}
+        const code = "{{.LobbyCode}}";
+        let lastTurns = nowTurns; // initial server value
+
+        async function tick() {
+            try {
+                const res = await fetch("/online/state?code=" + encodeURIComponent(code), { cache: "no-store" });
+                if (!res.ok) return;
+                const j = await res.json();
+                if (j.gameOver || j.turns !== lastTurns) {
+                    location.reload();
+                    return;
+                }
+                lastTurns = j.turns;
+            } catch (_) {}
+        }
+        setInterval(tick, 1200);
+        {{end}}
+    })();
+</script>
+{{end}}

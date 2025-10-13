@@ -1,0 +1,42 @@
+{{define "base"}}
+<!doctype html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>Power 4 — Go</title>
+    <link rel="stylesheet" href="/static/style.css"/>
+    <meta name="theme-color" content="#0b0f1a"/>
+</head>
+{{ $grav := .GravityUp }}
+<body class="{{if $grav}}gravity-inverse{{end}}">
+<div class="bg-layer"></div>
+
+<header class="topbar">
+    <h1>Puissance 4 PAR ELIAS ET ALAN</h1>
+    <nav class="controls">
+        <form method="post" action="/reset"><button type="submit">🏠 Menu</button></form>
+        {{if eq .Page "game"}}
+        {{template "game_topright" .}}
+        {{else if eq .Page "result"}}
+        {{template "result_topright" .}}
+        {{else}}
+        {{template "start_topright" .}}
+        {{end}}
+    </nav>
+</header>
+
+<main class="container">
+    {{if eq .Page "game"}}
+    {{template "game_content" .}}
+    {{else if eq .Page "result"}}
+    {{template "result_content" .}}
+    {{else}}
+    {{template "start_content" .}}
+    {{end}}
+</main>
+
+<footer class="footer">HTTP server: Go net/http — templates in /templates — no JS.</footer>
+</body>
+</html>
+{{end}}

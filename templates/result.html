@@ -1,0 +1,37 @@
+{{define "result_topright"}}
+<div class="badge">🎯 {{.Difficulty}}</div>
+{{end}}
+
+{{define "result_content"}}
+<section class="card center">
+    {{if .Message}}
+    <h2>{{.Message}}</h2>
+    {{else}}
+    <h2>
+        {{/* LastPlayed is the color that just won: 'R' or 'Y' */}}
+        {{if eq .LastPlayed "R"}}
+        Victoire de {{.P1}} !
+        {{else}}
+        Victoire de {{.P2}} !
+        {{end}}
+    </h2>
+    {{end}}
+    <p>Score — {{.P1}}: <strong>{{.Scores.R}}</strong> | {{.P2}}: <strong>{{.Scores.Y}}</strong></p>
+
+    <!-- NEW: win sound -->
+    <audio id="sndWin" preload="auto">
+        <source src="/static/sounds/win.mp3" type="audio/mpeg">
+    </audio>
+    <script>
+        (function(){
+            const a = document.getElementById('sndWin');
+            if (a) a.play().catch(()=>{});
+        })();
+    </script>
+
+    <div class="actions">
+        <form method="post" action="/replay"><button type="submit">🔁 Revanche</button></form>
+        <form method="post" action="/reset"><button type="submit">🏠 Menu</button></form>
+    </div>
+</section>
+{{end}}
