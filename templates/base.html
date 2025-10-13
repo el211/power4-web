@@ -9,7 +9,7 @@
     <meta name="theme-color" content="#0b0f1a"/>
 </head>
 {{ $grav := .GravityUp }}
-<body class="{{if $grav}}gravity-inverse{{end}}">
+<body class="{{if $grav}}gravity-inverse {{end}}{{if .IsOnline}}has-chat{{end}}">
 <div class="bg-layer"></div>
 
 <header class="topbar">
@@ -36,7 +36,7 @@
     {{end}}
 </main>
 
-<footer class="footer">HTTP server: Go net/http — templates in /templates — no JS.</footer>
+<footer class="footer">Creer par Elias et Alan .</footer>
 </body>
 </html>
 {{end}}

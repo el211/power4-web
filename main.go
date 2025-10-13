@@ -64,11 +64,21 @@ type Game struct {
 	LastPlayed byte
 }
 
+type ChatMessage struct {
+	ID   int64
+	When time.Time
+	Side string // "R" ou "Y"
+	Name string // affiché (P1/P2)
+	Text string // contenu
+}
+
 type lobby struct {
-	Game      *Game
-	UpdatedAt time.Time
-	HasRed    bool
-	HasYellow bool
+	Game       *Game
+	UpdatedAt  time.Time
+	HasRed     bool
+	HasYellow  bool
+	Chat       []ChatMessage
+	NextChatID int64
 }
 
 type server struct {
@@ -102,6 +112,8 @@ func main() {
 	mux.HandleFunc("/online/wait", s.handleOnlineWait)
 	mux.HandleFunc("/online/state", s.handleOnlineState)
 	mux.HandleFunc("/online/play", s.handleOnlinePlay)
+	mux.HandleFunc("/chat/post", s.handleChatPost)
+	mux.HandleFunc("/chat/feed", s.handleChatFeed)
 
 	// Static
 	mux.HandleFunc("/static/style.css", func(w http.ResponseWriter, r *http.Request) {
@@ -563,9 +575,10 @@ func securityHeaders(next http.Handler) http.Handler {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Referrer-Policy", "no-referrer-when-downgrade")
 		w.Header().Set("X-Frame-Options", "DENY")
-		// ⬇️ add script-src; inline is required because your polling code is inline in the template
+		// Allow inline JS (for tiny template scripts) and audio from self
 		w.Header().Set("Content-Security-Policy",
-			"default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self'; img-src 'self' data:;")
+			"default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self'; img-src 'self' data:; media-src 'self';")
+
 		next.ServeHTTP(w, r)
 	})
 }
@@ -874,4 +887,106 @@ func (s *server) handleOnlinePlay(w http.ResponseWriter, r *http.Request) {
 	s.mu.Unlock()
 
 	http.Redirect(w, r, "/online/wait?code="+code+"&side="+side, http.StatusSeeOther)
+}
+
+// POST /chat/post  (form: code, side, name, text)
+func (s *server) handleChatPost(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method", http.StatusMethodNotAllowed)
+		return
+	}
+
+	code := strings.ToUpper(strings.TrimSpace(r.FormValue("code")))
+	side := strings.ToUpper(strings.TrimSpace(r.FormValue("side"))) // "R" ou "Y"
+	name := strings.TrimSpace(r.FormValue("name"))
+	text := strings.TrimSpace(r.FormValue("text"))
+
+	if code == "" || (side != "R" && side != "Y") || text == "" {
+		http.Error(w, "bad request", http.StatusBadRequest)
+		return
+	}
+	if len(text) > 240 { // petite limite
+		text = text[:240]
+	}
+	if name == "" {
+		name = "Joueur"
+	}
+
+	s.mu.Lock()
+	lb, ok := s.lobbies[code]
+	if !ok {
+		s.mu.Unlock()
+		http.Error(w, "not found", http.StatusNotFound)
+		return
+	}
+	lb.NextChatID++
+	msg := ChatMessage{
+		ID:   lb.NextChatID,
+		When: time.Now(),
+		Side: side,
+		Name: name,
+		Text: text,
+	}
+	lb.Chat = append(lb.Chat, msg)
+	// cap à ~200 messages
+	if len(lb.Chat) > 200 {
+		lb.Chat = lb.Chat[len(lb.Chat)-200:]
+	}
+	lb.UpdatedAt = time.Now()
+	s.mu.Unlock()
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// GET /chat/feed?code=ABCD&since=123
+func (s *server) handleChatFeed(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate")
+	w.Header().Set("Pragma", "no-cache")
+
+	code := strings.ToUpper(strings.TrimSpace(r.URL.Query().Get("code")))
+	sinceStr := strings.TrimSpace(r.URL.Query().Get("since"))
+	var since int64
+	if sinceStr != "" {
+		if v, err := strconv.ParseInt(sinceStr, 10, 64); err == nil {
+			since = v
+		}
+	}
+	if code == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte(`{"err":"missing code"}`))
+		return
+	}
+
+	s.mu.Lock()
+	lb, ok := s.lobbies[code]
+	var out []ChatMessage
+	if ok {
+		for _, m := range lb.Chat {
+			if m.ID > since {
+				out = append(out, m)
+			}
+		}
+	}
+	s.mu.Unlock()
+	if !ok {
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = w.Write([]byte(`{"err":"not found"}`))
+		return
+	}
+
+	// petite réponse JSON
+	builder := strings.Builder{}
+	builder.WriteString(`{"ok":true,"items":[`)
+	for i, m := range out {
+		if i > 0 {
+			builder.WriteByte(',')
+		}
+		// échappes basiques
+		txt := strings.ReplaceAll(m.Text, `"`, `\"`)
+		nm := strings.ReplaceAll(m.Name, `"`, `\"`)
+		builder.WriteString(fmt.Sprintf(`{"id":%d,"side":"%s","name":"%s","text":"%s"}`, m.ID, m.Side, nm, txt))
+	}
+	builder.WriteString(`]}`)
+	_, _ = w.Write([]byte(builder.String()))
 }

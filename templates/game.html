@@ -30,7 +30,7 @@
 <audio id="sndRise" preload="auto">
     <source src="/static/sounds/piece_rise.mp3" type="audio/mpeg">
 </audio>
-<!-- NEW: start sound -->
+<!-- Start sound -->
 <audio id="sndStart" preload="auto">
     <source src="/static/sounds/start.mp3" type="audio/mpeg">
 </audio>
@@ -72,6 +72,19 @@
     {{end}}
 </section>
 
+{{if .IsOnline}}
+<!-- ===== Mini-Chat (en ligne) ===== -->
+<aside class="chat-panel">
+    <div class="chat-header">💬 Chat de la salle <strong>{{.LobbyCode}}</strong></div>
+    <div id="chatList" class="chat-list" aria-live="polite"></div>
+
+    <form id="chatForm" class="chat-form" autocomplete="off">
+        <input type="text" id="chatInput" name="text" placeholder="Écrire un message…" maxlength="240" required>
+        <button type="submit" class="btn-primary">Envoyer</button>
+    </form>
+</aside>
+{{end}}
+
 <script>
     (function () {
         /* ---------- Sounds ---------- */
@@ -87,8 +100,9 @@
             });
         };
         window.addEventListener("pointerdown", arm, { once: true });
+        window.addEventListener("keydown", arm, { once: true });
 
-        // NEW: play start sound at the beginning of a match
+        // Play start sound when a fresh match loads (server sets .PlayStart)
         const shouldStart = {{if .PlayStart}}true{{else}}false{{end}};
         if (shouldStart) {
             try { sndStart.currentTime = 0; sndStart.play(); } catch(_) {}
@@ -133,6 +147,68 @@
             } catch (_) {}
         }
         setInterval(tick, 1200);
+
+        /* ---------- Mini-Chat (polling) ---------- */
+        const chatList  = document.getElementById('chatList');
+        const chatForm  = document.getElementById('chatForm');
+        const chatInput = document.getElementById('chatInput');
+        let lastChatID = 0;
+
+        const mySide = "{{if .ThisIsRed}}R{{else}}Y{{end}}";
+        const myName = "{{if .ThisIsRed}}{{.P1}}{{else}}{{.P2}}{{end}}";
+
+        function appendMsg(m){
+            const item = document.createElement('div');
+            item.className = 'chat-item ' + (m.side === 'R' ? 'chat-r' : 'chat-y');
+            const who = document.createElement('span');
+            who.className = 'chat-who';
+            who.textContent = (m.side === 'R' ? '🔴 ' : '🟡 ') + m.name + ' : ';
+            const txt = document.createElement('span');
+            txt.className = 'chat-text';
+            txt.textContent = m.text;
+            item.appendChild(who);
+            item.appendChild(txt);
+            chatList.appendChild(item);
+            chatList.scrollTop = chatList.scrollHeight;
+        }
+
+        async function pollChat(){
+            try{
+                const res = await fetch(`/chat/feed?code=${encodeURIComponent(code)}&since=${lastChatID}`, { cache:"no-store" });
+                if(!res.ok) return;
+                const j = await res.json();
+                if (j.items && j.items.length){
+                    j.items.forEach(m => {
+                        appendMsg(m);
+                        if (m.id > lastChatID) lastChatID = m.id;
+                    });
+                }
+            }catch(_){}
+        }
+        setInterval(pollChat, 1200);
+        pollChat();
+
+        if (chatForm){
+            chatForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const text = (chatInput.value || "").trim();
+                if (!text) return;
+                const fd = new FormData();
+                fd.append('code', code);
+                fd.append('side', mySide);
+                fd.append('name', myName);
+                fd.append('text', text);
+                try{
+                    const r = await fetch('/chat/post', { method:'POST', body: fd });
+                    if (r.ok){
+                        chatInput.value = '';
+                        // local echo for instant feedback
+                        appendMsg({id: lastChatID+1, side: mySide, name: myName, text});
+                        lastChatID++;
+                    }
+                }catch(_){}
+            });
+        }
         {{end}}
     })();
 </script>
