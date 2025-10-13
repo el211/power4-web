@@ -1,0 +1,25 @@
+:root{
+    --bg:#0b0f1a; --card:#111827; --muted:#94a3b8; --accent:#2563eb;
+    --grid:#1f2937; --hole:#0b1220; --red:#ef4444; --yellow:#f59e0b; --btn:#0f172a;
+}
+*{box-sizing:border-box} html,body{height:100%}
+body{margin:0;font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#0b0f1a;color:#e5e7eb}
+.topbar{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid #111827;background:#0b0f1aAA;backdrop-filter:blur(6px)}
+.controls{display:flex;gap:10px;align-items:center}
+select,button{background:var(--btn);color:#e5e7eb;border:1px solid #1f2937;padding:8px 12px;border-radius:10px;cursor:pointer}
+button:hover,select:hover{border-color:var(--accent)}
+.container{max-width:900px;margin:28px auto;padding:0 16px}
+.status{display:flex;justify-content:space-between;align-items:center;background:var(--card);padding:12px 16px;border-radius:14px;border:1px solid #1f2937}
+#playerLabel{color:var(--red)} #score{display:flex;gap:18px;color:var(--muted)}
+.board{margin:18px auto;display:grid;gap:10px;grid-template-columns:repeat(7,1fr);width:min(95vw,820px);padding:14px;border-radius:18px;background:linear-gradient(180deg,#0f1a2b 0%,#0b1220 100%);border:1px solid #1f2937;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+.col{background:var(--grid);border-radius:12px;padding:10px;display:grid;gap:10px;grid-template-rows:repeat(6,1fr)}
+.cell{width:100%;aspect-ratio:1/1;border-radius:50%;background:radial-gradient(60% 60% at 30% 30%,#162036 0%,var(--hole) 100%);display:flex;align-items:center;justify-content:center}
+.piece{width:88%;height:88%;border-radius:50%;box-shadow:inset 0 6px 10px rgba(255,255,255,.15), inset 0 -12px 20px rgba(0,0,0,.35)}
+.piece.red{background:radial-gradient(circle at 35% 25%, #ff6b6b 0%, var(--red) 60%)}
+.piece.yellow{background:radial-gradient(circle at 35% 25%, #ffd166 0%, var(--yellow) 60%)}
+.controls-row{display:flex;gap:8px;justify-content:center;margin:12px 0}
+.controls-row form{display:inline}
+.controls-row button{min-width:44px}
+.winner{outline:3px solid var(--accent)}
+.footer{color:#64748b;text-align:center;padding:24px 12px;font-size:.9rem}
+.notice{background:#0f172a;border:1px solid #1f2937;border-radius:12px;padding:10px 14px;margin:10px 0;color:#d1d5db}

@@ -1,0 +1,48 @@
+{{define "content"}}
+    <section class="status">
+        <div>Au tour de : <span id="playerLabel" style="color:{{if eq .Current "R"}}var(--red){{else}}var(--yellow){{end}};">
+    {{if eq .Current "R"}}Rouge{{else}}Jaune{{end}}
+  </span></div>
+        <div id="score">
+            <span>🔴 Rouge: <strong>{{.Scores.R}}</strong></span>
+            <span>🟡 Jaune: <strong>{{.Scores.Y}}</strong></span>
+        </div>
+    </section>
+
+    {{if .Message}}
+        <div class="notice">{{.Message}}</div>
+        <div class="controls-row">
+            <form method="post" action="/replay"><button type="submit">Rejouer (garder scores)</button></form>
+            <form method="post" action="/reset"><button type="submit">Remise à zéro</button></form>
+        </div>
+    {{end}}
+
+    <!-- Lignes de boutons "déposer dans la colonne" -->
+    <div class="controls-row">
+        {{range $c := .Cols}}
+            <form method="post" action="/play">
+                <input type="hidden" name="col" value="{{$c}}">
+                <button type="submit" {{if index $.Disabled $c}}disabled{{end}}>↓ {{$c}}</button>
+            </form>
+        {{end}}
+    </div>
+
+    <!-- Plateau -->
+    <section class="board" aria-label="Plateau Puissance 4" role="grid">
+        {{range $r, $row := .Grid}}
+            {{/* on parcourt par colonnes pour garder l’affichage colonnes */}}
+        {{end}}
+        {{range $c := .Cols}}
+            <div class="col">
+                {{/* de haut en bas (0..5) */}}
+                {{range $r := $.Rows}}
+                    {{$cell := index (index $.Grid $r) $c}}
+                    <div class="cell {{if index $.Winning $r $c}}winner{{end}}">
+                        {{if eq $cell "R"}}<div class="piece red"></div>{{end}}
+                        {{if eq $cell "Y"}}<div class="piece yellow"></div>{{end}}
+                    </div>
+                {{end}}
+            </div>
+        {{end}}
+    </section>
+{{end}}
