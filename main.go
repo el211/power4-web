@@ -412,17 +412,29 @@ func placeBlocks(grid [][]byte, n int) {
 	}
 }
 
+// dropRow choisit la case d'arrivée dans la colonne col.
+// Règle custom : rien ne bloque le chemin (ni R/Y ni X).
+// On atterrit sur la case VIDE la plus éloignée dans le sens de la gravité.
+// - Gravité normale (down)  : la case vide la PLUS BASSE
+// - Gravité inversée (up)   : la case vide la PLUS HAUTE
+// On ne peut pas atterrir sur une case 'X' (mais on peut "passer à travers").
 func dropRow(grid [][]byte, col int, gravityUp bool) int {
 	h := len(grid)
+	if h == 0 || col < 0 || col >= len(grid[0]) {
+		return -1
+	}
+
 	if !gravityUp {
+		// vers le BAS : première case vide en partant du bas
 		for r := h - 1; r >= 0; r-- {
 			if grid[r][col] == cellEmpty {
 				return r
 			}
 		}
-		return -1
+		return -1 // aucune case vide
 	}
-	// inverse gravity (upwards)
+
+	// vers le HAUT : première case vide en partant du haut
 	for r := 0; r < h; r++ {
 		if grid[r][col] == cellEmpty {
 			return r
@@ -466,6 +478,7 @@ func isDraw(grid [][]byte) bool {
 }
 
 func (s *server) viewModel(g *Game) map[string]any {
+	// indices
 	colsIdx := make([]int, g.Cols)
 	rowsIdx := make([]int, g.Rows)
 	for i := 0; i < g.Cols; i++ {
@@ -475,7 +488,7 @@ func (s *server) viewModel(g *Game) map[string]any {
 		rowsIdx[i] = i
 	}
 
-	// Is it my turn (only matters online)?
+	// whose turn (only matters online)
 	myTurn := true
 	if g.Mode == "online" {
 		if g.ThisIsRed {
@@ -485,21 +498,14 @@ func (s *server) viewModel(g *Game) map[string]any {
 		}
 	}
 
-	// Which columns are disabled?
-	h := g.Rows
+	// which columns are disabled?
 	disabled := make([]bool, g.Cols)
 	for c := 0; c < g.Cols; c++ {
 		if !myTurn || g.GameOver {
 			disabled[c] = true
 			continue
 		}
-		if g.GravityUp {
-			// inverse gravity: full when BOTTOM is occupied
-			disabled[c] = g.Grid[h-1][c] != cellEmpty
-		} else {
-			// normal gravity: full when TOP is occupied
-			disabled[c] = g.Grid[0][c] != cellEmpty
-		}
+		disabled[c] = (dropRow(g.Grid, c, g.GravityUp) == -1)
 	}
 
 	return map[string]any{
@@ -510,7 +516,7 @@ func (s *server) viewModel(g *Game) map[string]any {
 		"Cols":       colsIdx,
 		"Disabled":   disabled,
 		"CurrentStr": string(g.Current),
-		"LastPlayed": string(g.LastPlayed), // <<< add this
+		"LastPlayed": string(g.LastPlayed), // requires: LastPlayed byte in Game
 		"P1":         g.Player1,
 		"P2":         g.Player2,
 		"Scores":     g.Scores,
@@ -520,10 +526,9 @@ func (s *server) viewModel(g *Game) map[string]any {
 		"Difficulty": g.Difficulty,
 		"GameOver":   g.GameOver,
 		"IsOnline":   g.Mode == "online",
-		"LobbyCode":  g.LobbyCode,
-		"ThisIsRed":  g.ThisIsRed,
+		"LobbyCode":  g.LobbyCode, // requires: LobbyCode string in Game
+		"ThisIsRed":  g.ThisIsRed, // requires: ThisIsRed bool in Game
 	}
-
 }
 
 func (s *server) render(w http.ResponseWriter, page string, data map[string]any) {
