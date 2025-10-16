@@ -13,9 +13,23 @@
 <div class="bg-layer"></div>
 
 <header class="topbar">
-    <h1>Puissance 4 PAR ELIAS ET ALAN</h1>
+    <h1 class="brand">
+      <span class="brand-logo" aria-hidden="true">
+        <span class="disc disc-red"></span>
+        <span class="disc disc-yellow"></span>
+        <span class="disc disc-red"></span>
+      </span>
+        <span class="brand-text">
+        <strong>Puissance&nbsp;4</strong>
+        <em>par&nbsp;Elias&nbsp;et&nbsp;Alan</em>
+      </span>
+    </h1>
+
     <nav class="controls">
         <form method="post" action="/reset"><button type="submit">🏠 Menu</button></form>
+        <button id="bgmToggle" class="btn-secondary" type="button" title="Activer/désactiver la musique">
+            🔇 Musique: off
+        </button>
         {{if eq .Page "game"}}
         {{template "game_topright" .}}
         {{else if eq .Page "result"}}
@@ -37,6 +51,132 @@
 </main>
 
 <footer class="footer">Creer par Elias et Alan .</footer>
+
+<!-- Global audio: autoplay muted to prebuffer -->
+<audio id="bgm" preload="auto" autoplay muted loop playsinline>
+    <source src="/static/sounds/menu_bgm.mp3" type="audio/mpeg">
+</audio>
+
+<script>
+    (function(){
+        const bgm = document.getElementById('bgm');
+        const btn = document.getElementById('bgmToggle');
+
+        const PREF_KEY = 'pg_bgm_on';
+        const VOL_KEY  = 'pg_bgm_vol';
+        const DEFAULT_TARGET_VOL = 0.35;
+        const MIN_VOL = 0.06;
+
+        let prefOn = (localStorage.getItem(PREF_KEY) ?? 'true') === 'true';
+        let targetVol = parseFloat(localStorage.getItem(VOL_KEY) || String(DEFAULT_TARGET_VOL));
+        if (Number.isNaN(targetVol)) targetVol = DEFAULT_TARGET_VOL;
+        if (targetVol < MIN_VOL) targetVol = DEFAULT_TARGET_VOL;
+
+        // Start at 0 to satisfy autoplay; we set real volume on first gesture
+        bgm.volume = 0;
+
+        function setBtnLabel(){
+            if (!btn) return;
+            btn.textContent = prefOn ? '🔊 Musique: on' : '🔇 Musique: off';
+        }
+
+        function fadeTo(vTarget, ms){
+            const start = bgm.volume;
+            const t0 = performance.now();
+            function step(t){
+                const k = Math.min(1, (t - t0) / ms);
+                bgm.volume = start + (vTarget - start) * k;
+                if (k < 1) requestAnimationFrame(step);
+            }
+            requestAnimationFrame(step);
+        }
+
+        let armed = false;
+
+        async function startMusicNow(){
+            bgm.muted = false;
+            bgm.volume = targetVol;                 // immediate audible level
+            try { if (bgm.paused) await bgm.play(); } catch(_) {}
+            fadeTo(targetVol, 120);
+            localStorage.setItem(VOL_KEY, String(targetVol));
+        }
+
+        async function armOnce(){
+            if (armed) return;
+            armed = true;
+            try {
+                const AC = window.AudioContext || window.webkitAudioContext;
+                if (AC){
+                    const ctx = new AC();
+                    if (ctx.state !== 'running') { try { await ctx.resume(); } catch(_){} }
+                }
+            } catch(_){}
+            if (prefOn) { await startMusicNow(); }
+        }
+
+        // catch any first gesture
+        const once = { once:true, passive:true };
+        window.addEventListener('pointerdown', armOnce, once);
+        window.addEventListener('click',       armOnce, once);
+        window.addEventListener('keydown',     armOnce, once);
+        window.addEventListener('touchstart',  armOnce, once);
+        // if first gesture is submit (navigation), arm before it bubbles
+        document.addEventListener('submit', () => { armOnce(); }, true);
+
+        // warm-up on load (buffering)
+        window.addEventListener('load', () => {
+            if (prefOn) { try { bgm.play().catch(()=>{}); } catch(_){} }
+        });
+
+        // toggle
+        if (btn){
+            btn.addEventListener('click', async () => {
+                prefOn = !prefOn;
+                localStorage.setItem(PREF_KEY, String(prefOn));
+                setBtnLabel();
+                if (prefOn){
+                    await startMusicNow();
+                } else {
+                    fadeTo(0, 120);
+                    setTimeout(()=>{ bgm.muted = true; }, 140);
+                }
+            });
+        }
+
+        // resume when tab visible again
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible' && prefOn){
+                bgm.muted = false;
+                if (bgm.volume < MIN_VOL) bgm.volume = targetVol;
+                bgm.play().catch(()=>{});
+                fadeTo(targetVol, 120);
+            }
+        });
+
+        // Ctrl/Alt + wheel to change volume (clamped)
+        window.addEventListener('wheel', (e) => {
+            if (!(e.ctrlKey || e.altKey)) return;
+            e.preventDefault();
+            targetVol = Math.max(MIN_VOL, Math.min(1, targetVol + (e.deltaY < 0 ? 0.05 : -0.05)));
+            localStorage.setItem(VOL_KEY, String(targetVol));
+            if (!bgm.muted){
+                if (bgm.paused) bgm.play().catch(()=>{});
+                bgm.volume = targetVol;
+            }
+        }, { passive:false });
+
+        // one-time fix if 0 volume was saved before
+        if (localStorage.getItem(VOL_KEY) === "0" || localStorage.getItem(VOL_KEY) === "0.0"){
+            localStorage.removeItem(VOL_KEY);
+        }
+
+        setBtnLabel();
+    })();
+</script>
+
+<!-- Falling glossy discs (only runs on start screen) -->
+<script src="/static/js/lobby-balls.js" defer></script>
+
 </body>
 </html>
 {{end}}

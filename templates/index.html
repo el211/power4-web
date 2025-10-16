@@ -30,26 +30,21 @@
     {{end}}
 </div>
 
-<!-- Plateau : 7 colonnes × 6 lignes (clic sur la colonne = dépôt avec gravité) -->
-<section class="board" aria-label="Plateau Puissance 4" role="grid">
+<!-- Plateau : colonnes × lignes (clic sur la colonne = dépôt avec gravité) -->
+<section class="board" aria-label="Plateau Puissance 4" role="grid"
+         style="grid-template-columns: repeat({{len .Cols}}, 1fr);">
     {{range $c := .Cols}}
     <div class="col">
-        {{/* cellules visuelles */}}
         {{range $r := $.Rows}}
         {{$cell := index (index $.Grid $r) $c}}
         <div class="cell {{if index $.Winning $r $c}}winner{{end}}">
-            {{if eq $cell 82}}<div class="piece red"></div>{{end}}    {{/* 82 == 'R' */}}
-            {{if eq $cell 89}}<div class="piece yellow"></div>{{end}} {{/* 89 == 'Y' */}}
+            {{if eq $cell 82}}<div class="piece red"></div>{{end}}
+            {{if eq $cell 89}}<div class="piece yellow"></div>{{end}}
+            {{if eq $cell 88}}<div class="piece block"></div>{{end}}
         </div>
         {{end}}
-
-        {{/* bouton invisible couvrant toute la colonne -> clic n'importe où dans la colonne */}}
         <form method="post" action="/play" class="col-form">
-            <button
-                    type="submit"
-                    name="col"
-                    value="{{$c}}"
-                    class="col-hit"
+            <button type="submit" name="col" value="{{$c}}" class="col-hit"
                     title="Déposer dans la colonne {{$c}}"
                     aria-label="Déposer dans la colonne {{$c}}"
                     {{if index $.Disabled $c}}disabled{{end}}>
@@ -58,6 +53,8 @@
     </div>
     {{end}}
 </section>
+
+
 
 
 {{end}}

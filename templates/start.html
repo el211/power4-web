@@ -1,12 +1,14 @@
 {{define "start_topright"}}
-<button id="bgmToggle" class="btn-secondary" type="button" title="Activer/désactiver la musique">
-    🔇 Musique: off
-</button>
+{{/* Intentionally empty: music toggle is now in the global header (base template). */}}
 {{end}}
 
 {{define "start_content"}}
 <section class="card">
-    <h2>Démarrer une partie</h2>
+    <h2 class="start-title">
+        Démarrer une partie
+    </h2>
+
+
 
     <!-- novalidate disables HTML5 popups; server trims/validates -->
     <form method="post" action="/start" class="start-form" novalidate>
@@ -32,8 +34,8 @@
             <label>Difficulté</label>
             <select name="difficulty">
                 <option value="easy"   {{if eq .Difficulty "easy"}}selected{{end}}>Easy — 6×7 • 3 blocs</option>
-                <option value="normal" {{if eq .Difficulty "normal"}}selected{{end}}>Normal — 6×9 • 5 blocs</option>
-                <option value="hard"   {{if eq .Difficulty "hard"}}selected{{end}}>Hard — 7×8 • 7 blocs</option>
+                <option value="normal" {{if eq .Difficulty "normal"}}selected{{end}}>Normal — 6×8 • 5 blocs</option>
+                <option value="hard"   {{if eq .Difficulty "hard"}}selected{{end}}>Hard — 6×9 • 7 blocs</option>
             </select>
         </div>
 
@@ -62,105 +64,8 @@
         </div>
     </form>
 
-    <!-- Musique de fond du menu -->
-    <audio id="bgmMenu" preload="auto" loop>
-        <source src="/static/sounds/menu_bgm.mp3" type="audio/mpeg">
-    </audio>
+    <p class="hint" style="margin-top:1rem">
+        Astuce&nbsp;: utilisez le bouton <em>Musique</em> dans l’en-tête pour activer/désactiver la musique.
+    </p>
 </section>
-
-<script>
-    (function(){
-        const bgm = document.getElementById('bgmMenu');
-        const btn = document.getElementById('bgmToggle');
-
-        const PREF_KEY = 'pg_bgm_on';     // 'true' | 'false'
-        const VOL_KEY  = 'pg_bgm_vol';    // 0..1 (float)
-        const DEFAULT_TARGET_VOL = 0.35;
-
-        // état initial (ON par défaut)
-        let prefOn = (localStorage.getItem(PREF_KEY) ?? 'true') === 'true';
-        let targetVol = parseFloat(localStorage.getItem(VOL_KEY) || String(DEFAULT_TARGET_VOL));
-        if (Number.isNaN(targetVol)) targetVol = DEFAULT_TARGET_VOL;
-
-        // Démarrer MUET (autoplay autorisé), on fera un fade-in au 1er geste si ON
-        bgm.volume = 0;
-        bgm.muted = true;
-        bgm.play().catch(()=>{}); // si ça échoue, on réessaiera après un geste
-
-        function setBtnLabel(){
-            if (!btn) return;
-            btn.textContent = prefOn ? '🔊 Musique: on' : '🔇 Musique: off';
-        }
-
-        function fadeTo(vTarget, ms){
-            const start = bgm.volume;
-            const t0 = performance.now();
-            function step(t){
-                const k = Math.min(1, (t - t0) / ms);
-                bgm.volume = start + (vTarget - start) * k;
-                if (k < 1) requestAnimationFrame(step);
-            }
-            requestAnimationFrame(step);
-        }
-
-        // Armement au premier geste utilisateur
-        let armed = false;
-        function armOnce(){
-            if (armed) return;
-            armed = true;
-            if (prefOn){
-                bgm.muted = false;
-                bgm.play().then(()=>fadeTo(targetVol, 500)).catch(()=>{});
-            }
-        }
-        const onceOpt = { once:true, passive:true };
-        window.addEventListener('pointerdown', armOnce, onceOpt);
-        window.addEventListener('keydown',     armOnce, onceOpt);
-        window.addEventListener('touchstart',  armOnce, onceOpt);
-
-        // Toggle bouton
-        if (btn){
-            btn.addEventListener('click', () => {
-                prefOn = !prefOn;
-                localStorage.setItem(PREF_KEY, String(prefOn));
-                setBtnLabel();
-                if (prefOn){
-                    if (!armed) armOnce();        // déclenche le dé-mute au besoin
-                    else {
-                        bgm.muted = false;
-                        if (bgm.paused) bgm.play().catch(()=>{});
-                        fadeTo(targetVol, 250);
-                    }
-                } else {
-                    fadeTo(0, 200);
-                    setTimeout(()=>{ bgm.muted = true; }, 220);
-                }
-            });
-        }
-
-        // Si on revient sur l’onglet et que l’utilisateur a déjà interagi : relance douce
-        document.addEventListener('visibilitychange', () => {
-            if (document.visibilityState === 'visible' && prefOn && armed){
-                bgm.muted = false;
-                bgm.play().catch(()=>{});
-                fadeTo(targetVol, 200);
-            }
-        });
-
-        // Optionnel : régler le volume avec Ctrl/Alt + molette
-        window.addEventListener('wheel', (e) => {
-            if (!(e.ctrlKey || e.altKey)) return;
-            e.preventDefault();
-            targetVol = Math.max(0, Math.min(1, targetVol + (e.deltaY < 0 ? 0.05 : -0.05)));
-            localStorage.setItem(VOL_KEY, String(targetVol));
-            if (prefOn){
-                bgm.muted = false;
-                if (bgm.paused) bgm.play().catch(()=>{});
-                bgm.volume = targetVol;
-            }
-        }, { passive:false });
-
-        setBtnLabel();
-    })();
-</script>
 {{end}}

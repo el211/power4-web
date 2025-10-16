@@ -372,9 +372,9 @@ func (s *server) checkResult(g *Game, r, c int, p byte) bool {
 func configByDifficulty(d string) (rows, cols, blocks int) {
 	switch d {
 	case "hard":
-		return 7, 8, 7
+		return 6, 9, 7
 	case "normal":
-		return 6, 9, 5
+		return 6, 8, 5
 	default: // easy
 		return 6, 7, 3
 	}
