@@ -79,6 +79,10 @@ type lobby struct {
 	HasYellow  bool
 	Chat       []ChatMessage
 	NextChatID int64
+
+	// NEW: rematch votes
+	RematchR bool
+	RematchY bool
 }
 
 type server struct {
@@ -114,6 +118,7 @@ func main() {
 	mux.HandleFunc("/online/play", s.handleOnlinePlay)
 	mux.HandleFunc("/chat/post", s.handleChatPost)
 	mux.HandleFunc("/chat/feed", s.handleChatFeed)
+	mux.HandleFunc("/online/replay", s.handleOnlineReplay)
 
 	// Static
 	mux.HandleFunc("/static/style.css", func(w http.ResponseWriter, r *http.Request) {
@@ -339,8 +344,33 @@ func (s *server) handleReset(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) handleResult(w http.ResponseWriter, r *http.Request) {
+	// default: session game
 	g := s.gameForRequest(w, r, false)
 	data := s.viewModel(g)
+
+	code := strings.ToUpper(strings.TrimSpace(r.URL.Query().Get("code")))
+	side := strings.ToUpper(strings.TrimSpace(r.URL.Query().Get("side")))
+
+	if code != "" && (side == "R" || "Y" == side) {
+		// Prefer authoritative lobby state
+		s.mu.Lock()
+		lb, ok := s.lobbies[code]
+		var gsrc *Game
+		if ok && lb.Game != nil {
+			// copy to avoid races while templating
+			gcopy := *lb.Game
+			gsrc = &gcopy
+		}
+		s.mu.Unlock()
+
+		if gsrc != nil {
+			data = s.viewModel(gsrc)
+		}
+		data["IsOnline"] = true
+		data["LobbyCode"] = code
+		data["ThisIsRed"] = (side == "R")
+	}
+
 	s.render(w, "result", data)
 }
 
@@ -807,23 +837,27 @@ func (s *server) handleOnlineState(w http.ResponseWriter, r *http.Request) {
 
 	code := strings.ToUpper(strings.TrimSpace(r.URL.Query().Get("code")))
 	if code == "" {
-		w.WriteHeader(400)
+		w.WriteHeader(http.StatusBadRequest)
 		_, _ = w.Write([]byte(`{"err":"missing code"}`))
 		return
 	}
 
 	s.mu.Lock()
 	lb, ok := s.lobbies[code]
-	s.mu.Unlock()
-	if !ok {
-		w.WriteHeader(404)
+	if !ok || lb.Game == nil {
+		s.mu.Unlock()
+		w.WriteHeader(http.StatusNotFound)
 		_, _ = w.Write([]byte(`{"err":"not found"}`))
 		return
 	}
+	g := lb.Game
+	remR := lb.RematchR
+	remY := lb.RematchY
+	s.mu.Unlock()
 
 	_, _ = w.Write([]byte(fmt.Sprintf(
-		`{"ok":true,"gameOver":%t,"current":"%s","gravityUp":%t,"turns":%d}`,
-		lb.Game.GameOver, string(lb.Game.Current), lb.Game.GravityUp, lb.Game.Turns,
+		`{"ok":true,"gameOver":%t,"current":"%s","gravityUp":%t,"turns":%d,"rematchR":%t,"rematchY":%t}`,
+		g.GameOver, string(g.Current), g.GravityUp, g.Turns, remR, remY,
 	)))
 }
 
@@ -832,6 +866,7 @@ func (s *server) handleOnlinePlay(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
 	}
+
 	code := strings.ToUpper(strings.TrimSpace(r.FormValue("code")))
 	side := strings.ToUpper(strings.TrimSpace(r.FormValue("side")))
 	colStr := r.FormValue("col")
@@ -839,13 +874,14 @@ func (s *server) handleOnlinePlay(w http.ResponseWriter, r *http.Request) {
 
 	s.mu.Lock()
 	lb, ok := s.lobbies[code]
-	if !ok {
+	if !ok || lb.Game == nil {
 		s.mu.Unlock()
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
 	}
 	g := lb.Game
 
+	// whose turn should it be?
 	expect := cellR
 	if side == "Y" {
 		expect = cellY
@@ -856,33 +892,42 @@ func (s *server) handleOnlinePlay(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// drop the piece with current gravity
 	row := dropRow(g.Grid, c, g.GravityUp)
 	if row == -1 || g.Grid[row][c] != cellEmpty {
 		s.mu.Unlock()
 		http.Redirect(w, r, "/online/wait?code="+code+"&side="+side, http.StatusSeeOther)
 		return
 	}
+
 	g.Grid[row][c] = g.Current
 	g.Turns++
+	g.LastPlayed = g.Current // so /result knows who just played
 
+	// win / draw?
 	if s.checkResult(g, row, c, g.Current) {
+		// reset rematch votes for this finished game
+		lb.RematchR = false
+		lb.RematchY = false
 		lb.UpdatedAt = time.Now()
 		s.mu.Unlock()
 
-		// ⬇️ Copy the finished lobby game into this user's session,
-		// so /result renders the correct names/scores/LastPlayed.
-		gs := s.gameForRequest(w, r, true) // reset or create the session game
-		*gs = *g                           // shallow copy is fine (we don't reuse it)
+		// copy final state into session so /result has names, scores & LastPlayed
+		gs := s.gameForRequest(w, r, true)
+		*gs = *g
 
-		http.Redirect(w, r, "/result", http.StatusSeeOther)
+		http.Redirect(w, r, "/result?code="+code+"&side="+side, http.StatusSeeOther)
 		return
 	}
 
+	// switch player
 	if g.Current == cellR {
 		g.Current = cellY
 	} else {
 		g.Current = cellR
 	}
+
+	// flip gravity every 5 turns
 	if g.Turns%5 == 0 {
 		g.GravityUp = !g.GravityUp
 		g.Message = ""
@@ -892,6 +937,63 @@ func (s *server) handleOnlinePlay(w http.ResponseWriter, r *http.Request) {
 	s.mu.Unlock()
 
 	http.Redirect(w, r, "/online/wait?code="+code+"&side="+side, http.StatusSeeOther)
+}
+
+func (s *server) handleOnlineReplay(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return
+	}
+	code := strings.ToUpper(strings.TrimSpace(r.FormValue("code")))
+	side := strings.ToUpper(strings.TrimSpace(r.FormValue("side"))) // "R" or "Y"
+
+	if code == "" || (side != "R" && side != "Y") {
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return
+	}
+
+	s.mu.Lock()
+	lb, ok := s.lobbies[code]
+	if !ok || lb.Game == nil {
+		s.mu.Unlock()
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return
+	}
+
+	// 1) mark this player's vote
+	if side == "R" {
+		lb.RematchR = true
+	} else {
+		lb.RematchY = true
+	}
+
+	// 2) if both voted, start a new match with same settings + scores
+	if lb.RematchR && lb.RematchY {
+		old := lb.Game
+		diff := old.Difficulty
+		rows, cols, blocks := configByDifficulty(diff)
+
+		scoreR, scoreY := old.Scores.R, old.Scores.Y
+		p1, p2 := old.Player1, old.Player2
+
+		ng := newGame(rows, cols, blocks)
+		ng.Player1, ng.Player2 = p1, p2
+		ng.Scores.R, ng.Scores.Y = scoreR, scoreY
+		ng.Difficulty = diff
+		ng.Mode = "online"
+		ng.LobbyCode = code
+
+		lb.Game = ng
+		// reset votes for next game
+		lb.RematchR = false
+		lb.RematchY = false
+	}
+
+	lb.UpdatedAt = time.Now()
+	s.mu.Unlock()
+
+	// Stay on result screen; JS will see new game via /online/state and redirect to /online/wait
+	http.Redirect(w, r, "/result?code="+code+"&side="+side, http.StatusSeeOther)
 }
 
 // POST /chat/post  (form: code, side, name, text)

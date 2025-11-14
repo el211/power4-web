@@ -11,27 +11,94 @@
         {{/* LastPlayed is the color that just won: 'R' or 'Y' */}}
         {{if eq .LastPlayed "R"}}
         Victoire de {{.P1}} !
-        {{else}}
+        {{else if eq .LastPlayed "Y"}}
         Victoire de {{.P2}} !
+        {{else}}
+        Partie terminée !
         {{end}}
     </h2>
     {{end}}
-    <p>Score — {{.P1}}: <strong>{{.Scores.R}}</strong> | {{.P2}}: <strong>{{.Scores.Y}}</strong></p>
 
-    <!-- NEW: win sound -->
+    <p>
+        Score — {{.P1}}: <strong>{{.Scores.R}}</strong> | {{.P2}}: <strong>{{.Scores.Y}}</strong>
+    </p>
+
+    {{if .IsOnline}}
+    <p>
+        Salle : <strong>{{.LobbyCode}}</strong>
+    </p>
+    <p id="rematchStatus" class="hint">
+        Revanche : 0/2 prêts
+    </p>
+    {{end}}
+
+    <!-- Win sound -->
     <audio id="sndWin" preload="auto">
         <source src="/static/sounds/win.mp3" type="audio/mpeg">
     </audio>
     <script>
         (function(){
             const a = document.getElementById('sndWin');
-            if (a) a.play().catch(()=>{});
+            if (a) {
+                try { a.currentTime = 0; a.play().catch(()=>{}); } catch(_) {}
+            }
         })();
     </script>
 
-    <div class="actions">
-        <form method="post" action="/replay"><button type="submit">🔁 Revanche</button></form>
-        <form method="post" action="/reset"><button type="submit">🏠 Menu</button></form>
+    {{if .IsOnline}}
+    <script>
+        (function(){
+            const code     = "{{.LobbyCode}}";
+            const mySide   = "{{if .ThisIsRed}}R{{else}}Y{{end}}";
+            const statusEl = document.getElementById("rematchStatus");
+
+            async function tick(){
+                try{
+                    const res = await fetch("/online/state?code=" + encodeURIComponent(code), {
+                        cache: "no-store"
+                    });
+                    if (!res.ok) return;
+                    const j = await res.json();
+
+                    // update "X/2 prêts"
+                    if (typeof j.rematchR !== "undefined" &&
+                        typeof j.rematchY !== "undefined" &&
+                        statusEl){
+                        const votes = (j.rematchR ? 1 : 0) + (j.rematchY ? 1 : 0);
+                        statusEl.textContent = "Revanche : " + votes + "/2 prêts";
+                    }
+
+                    // if new game started (not gameOver & turns == 0), go back to room
+                    if (!j.gameOver && j.turns === 0){
+                        location.href = "/online/wait?code=" + encodeURIComponent(code) + "&side=" + mySide;
+                    }
+                }catch(e){}
+            }
+
+            setInterval(tick, 1200);
+            tick();
+        })();
+    </script>
+    {{end}}
+
+    <div class="actions" style="margin-top:1.2rem; display:flex; gap:.75rem; justify-content:center; flex-wrap:wrap;">
+        {{if .IsOnline}}
+        <!-- Online: vote for rematch in the same lobby -->
+        <form method="post" action="/online/replay">
+            <input type="hidden" name="code" value="{{.LobbyCode}}">
+            <input type="hidden" name="side" value="{{if .ThisIsRed}}R{{else}}Y{{end}}">
+            <button type="submit">🔁 Demander une revanche</button>
+        </form>
+        {{else}}
+        <!-- Local / AI: classic replay -->
+        <form method="post" action="/replay">
+            <button type="submit">🔁 Revanche</button>
+        </form>
+        {{end}}
+
+        <form method="post" action="/reset">
+            <button type="submit">🏠 Menu</button>
+        </form>
     </div>
 </section>
 {{end}}
