@@ -41,10 +41,13 @@
 <div class="notice">⤵️ Gravité normale (les pions descendent) — (tous les 5 tours)</div>
 {{end}}
 
-<section class="board" aria-label="Board" role="grid"
-         style="grid-template-columns: repeat({{len .Cols}}, 1fr);">
+{{/* Board: class depends on number of columns (easy / normal / hard) */}}
+<section
+        class="board {{if eq (len .Cols) 7}}board-easy{{else if eq (len .Cols) 8}}board-normal{{else}}board-hard{{end}}"
+        aria-label="Board"
+        role="grid">
     {{range $c := .Cols}}
-    <div class="col" style="grid-template-rows: repeat({{len $root.Rows}}, 1fr);">
+    <div class="col">
         {{range $r := $root.Rows}}
         {{$cell := index (index $root.Grid $r) $c}}
         <div class="cell {{if index $root.Winning $r $c}}winner{{end}}">
@@ -139,7 +142,12 @@
                 const res = await fetch("/online/state?code=" + encodeURIComponent(code), { cache: "no-store" });
                 if (!res.ok) return;
                 const j = await res.json();
-                if (j.gameOver || j.turns !== lastTurns) {
+                if (j.gameOver) {
+                    // Go straight to the shared result page with current room + my side
+                    location.href = `/result?code=${encodeURIComponent(code)}&side=${mySide}`;
+                    return;
+                }
+                if (j.turns !== lastTurns) {
                     location.reload();
                     return;
                 }

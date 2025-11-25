@@ -8,23 +8,26 @@
 
     // ---- config ----
     const CFG = {
-        density: 0.00016,
-        minR: 8, maxR: 18,
-        minVy: 12, maxVy: 28,
-        swayAmp: 18,
-        swaySpeed: [0.6, 1.2],
-        alpha: [0.35, 0.75],
-        shadow: 14,
+        density: 0.00004,
+        minR: 8, maxR: 14,
+        minVy: 8, maxVy: 16,
+        swayAmp: 12,
+        swaySpeed: [0.4, 0.9],
+        alpha: [0.3, 0.6],
+        shadow: 4,
         colors: ['#f59e0b', '#ef4444'],
         zIndex: 2,
-        holePadding: 14,   // extra empty margin inside the card
+        holePadding: 14,
+        maxBalls: 45,
     };
+
+
 
     // The "hole" is the first .card that contains the form.
     const cardEl = formEl.closest('.card');
 
     // ---- canvas layer ----
-    const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+    const dpr = 1; // ignore HiDPI to keep it cheap
     const c = document.createElement('canvas');
     const ctx = c.getContext('2d');
 
@@ -43,6 +46,9 @@
         c.style.height = innerHeight + 'px';
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         targetCount = Math.round(innerWidth * innerHeight * CFG.density);
+        if (CFG.maxBalls) {
+            targetCount = Math.min(targetCount, CFG.maxBalls);
+        }
         updateHoleRect();
     }
 
@@ -76,6 +82,9 @@
     const balls = [];
     const rand = (a, b) => a + Math.random() * (b - a);
     let t0 = performance.now() / 1000;
+    let fpsSamples = [];
+    const MAX_SAMPLES = 30;
+    const MIN_FPS = 40; // if it drops below this, we disable
 
     function makeBall(spawnTop = false) {
         const r = rand(CFG.minR, CFG.maxR);
@@ -142,6 +151,21 @@
         const t = nowMs / 1000;
         const dt = Math.min(0.032, t - t0);
         t0 = t;
+        // --- FPS monitor ---
+        if (dt > 0) {
+            const fps = 1 / dt;
+            fpsSamples.push(fps);
+            if (fpsSamples.length > MAX_SAMPLES) fpsSamples.shift();
+            const avgFps = fpsSamples.reduce((a, b) => a + b, 0) / fpsSamples.length;
+
+            if (avgFps < MIN_FPS) {
+                // too slow, kill effect
+                running = false;
+                c.remove();
+                console.warn('[LobbyBalls] disabled due to low FPS (~' + avgFps.toFixed(1) + ')');
+                return;
+            }
+        }
 
         while (balls.length < targetCount) balls.push(makeBall(true));
         if (balls.length > targetCount) balls.length = targetCount;

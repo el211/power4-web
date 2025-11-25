@@ -1,0 +1,12 @@
+/* Fix pour centrer correctement le plateau en mode "hard" */
+.board {
+    /* si la grille est plus petite que son conteneur, centre-la */
+    justify-content: center;
+    /* aligne aussi les éléments de la grille eux-mêmes au centre */
+    justify-items: center;
+}
+
+/* Override uniquement pour le mode hard (ne casse pas easy/normal) */
+.board-hard .col {
+    min-width: 48px; /* correspond au minmax(48px, 1fr) défini plus haut */
+}
