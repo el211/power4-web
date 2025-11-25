@@ -30,10 +30,8 @@
         <button id="bgmToggle" class="btn-secondary" type="button" title="Activer/désactiver la musique">
             🔇 Musique: off
         </button>
-        {{if eq .Page "game"}}
+        {{if or (eq .Page "game") (eq .Page "result")}}
         {{template "game_topright" .}}
-        {{else if eq .Page "result"}}
-        {{template "result_topright" .}}
         {{else}}
         {{template "start_topright" .}}
         {{end}}
@@ -72,7 +70,6 @@
         if (Number.isNaN(targetVol)) targetVol = DEFAULT_TARGET_VOL;
         if (targetVol < MIN_VOL) targetVol = DEFAULT_TARGET_VOL;
 
-        // Start at 0 to satisfy autoplay; we set real volume on first gesture
         bgm.volume = 0;
 
         function setBtnLabel(){
@@ -95,7 +92,7 @@
 
         async function startMusicNow(){
             bgm.muted = false;
-            bgm.volume = targetVol;                 // immediate audible level
+            bgm.volume = targetVol;
             try { if (bgm.paused) await bgm.play(); } catch(_) {}
             fadeTo(targetVol, 120);
             localStorage.setItem(VOL_KEY, String(targetVol));
@@ -114,21 +111,17 @@
             if (prefOn) { await startMusicNow(); }
         }
 
-        // catch any first gesture
         const once = { once:true, passive:true };
         window.addEventListener('pointerdown', armOnce, once);
         window.addEventListener('click',       armOnce, once);
         window.addEventListener('keydown',     armOnce, once);
         window.addEventListener('touchstart',  armOnce, once);
-        // if first gesture is submit (navigation), arm before it bubbles
         document.addEventListener('submit', () => { armOnce(); }, true);
 
-        // warm-up on load (buffering)
         window.addEventListener('load', () => {
             if (prefOn) { try { bgm.play().catch(()=>{}); } catch(_){} }
         });
 
-        // toggle
         if (btn){
             btn.addEventListener('click', async () => {
                 prefOn = !prefOn;
@@ -143,7 +136,6 @@
             });
         }
 
-        // resume when tab visible again
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'visible' && prefOn){
                 bgm.muted = false;
@@ -153,7 +145,6 @@
             }
         });
 
-        // Ctrl/Alt + wheel to change volume (clamped)
         window.addEventListener('wheel', (e) => {
             if (!(e.ctrlKey || e.altKey)) return;
             e.preventDefault();
@@ -165,7 +156,6 @@
             }
         }, { passive:false });
 
-        // one-time fix if 0 volume was saved before
         if (localStorage.getItem(VOL_KEY) === "0" || localStorage.getItem(VOL_KEY) === "0.0"){
             localStorage.removeItem(VOL_KEY);
         }
@@ -179,4 +169,8 @@
 
 </body>
 </html>
+{{end}}
+
+{{define "start_topright"}}
+{{/* empty; music bouton est global maintenant */}}
 {{end}}

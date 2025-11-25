@@ -1,16 +1,9 @@
-{{define "start_topright"}}
-{{/* Intentionally empty: music toggle is now in the global header (base template). */}}
-{{end}}
-
 {{define "start_content"}}
 <section class="card">
     <h2 class="start-title">
         Démarrer une partie
     </h2>
 
-
-
-    <!-- novalidate disables HTML5 popups; server trims/validates -->
     <form method="post" action="/start" class="start-form" novalidate>
         <div class="row">
             <label>Mode</label>
@@ -42,15 +35,12 @@
         <details class="row">
             <summary>Options en ligne</summary>
             <div class="inline">
-                <!-- IMPORTANT: no pattern; maxlength only -->
                 <input type="text" name="lobby_code"
                        placeholder="Code pour Rejoindre (ex: 9RR2)"
                        maxlength="10" autocomplete="off" autocapitalize="characters" />
-                <!-- Create: never validate code field -->
                 <button type="submit" name="online_action" value="create" class="btn-secondary" formnovalidate>
                     🆕 Créer une salle (code auto)
                 </button>
-                <!-- Join submits normally; server uppercases/validates -->
                 <button type="submit" name="online_action" value="join" class="btn-secondary">
                     🔗 Rejoindre (avec code)
                 </button>
@@ -59,7 +49,6 @@
         </details>
 
         <div class="row">
-            <!-- Big button also bypasses browser validation -->
             <button type="submit" class="btn-primary" formnovalidate>🚀 Lancer la partie</button>
         </div>
     </form>
