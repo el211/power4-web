@@ -1,87 +1,132 @@
-# Puissance 4 — Projet Ynov (Elias & Alan)
+# 🌟 Puissance 4 — Projet Ynov (Elias & Alan)
 
-Un **Puissance 4 moderne** codé **100% en Go**, avec interface web en mode **glassmorphism**, sons, IA et mode en ligne.
+Un **Puissance 4 nouvelle génération**, développé **100% en Go**, avec :
 
-Projet réalisé dans le cadre de nos études à **Ynov** par **Elias** et **Alan**.
+- 🎨 Interface web en **glassmorphism**
+- 🔊 Effets sonores complets
+- 🤖 IA intégrée
+- 🌐 Mode en ligne avec chat
+- 🧲 Gravité dynamique
+
+Projet créé dans le cadre de Ynov par **Elias** et **Alan**.
 
 ---
 
 ## 🕹️ Fonctionnalités
 
-- 🎮 **3 modes de jeu**
-  - **Local** : 2 joueurs sur le même PC
-  - **IA** : jouer contre une IA (avec un minimum de "cerveau" 😄)
-  - **En ligne** : 2 joueurs sur des PC différents via un système de salle (code de lobby)
+### 🎮 Modes de jeu
+- **Local** — 2 joueurs sur le même PC  
+- **IA** — IA intégrée avec logique et stratégie  
+- **En ligne** — Jouer à 2 sur des PC différents via un code de lobby
 
-- 📊 **Niveaux de difficulté**
-  - *Easy* — 6×7 avec 3 blocs
-  - *Normal* — 6×8 avec 5 blocs
-  - *Hard* — 6×9 avec 7 blocs
-  - Des blocs immobiles (`X`) changent les stratégies possibles
+### 📊 Difficultés
+| Difficulté | Grille | Blocs |
+|------------|--------|--------|
+| Easy       | 6×7    | 3      |
+| Normal     | 6×8    | 5      |
+| Hard       | 6×9    | 7      |
 
-- 🧲 **Gravité dynamique**
-  - La gravité change toutes les 5 actions :
-    - Gravité normale : les pions tombent vers le bas
-    - Gravité inversée : les pions montent vers le haut
-  - Indicateur visuel de l’état de gravité
+Des blocs immobiles (`X`) changent totalement la stratégie du jeu.
 
-- 🌐 **Mode en ligne**
-  - Création de **salles** avec un code
-  - Rejoint via un code existant
-  - Affichage du code de salle
-  - Système de **revanche** avec votes (1/2, 2/2 prêts)
+### 🧲 Gravité dynamique
+La gravité change **toutes les 5 actions** :
+- Gravité normale → les pions tombent  
+- Gravité inversée → les pions montent  
 
-- 💬 **Mini-chat in-game (en ligne)**
-  - Chat temps réel entre les deux joueurs de la salle
-  - Messages colorés selon le joueur (Rouge / Jaune)
-  - Polling léger côté client (fetch JSON)
+Avec un indicateur visuel dynamique.
 
-- 🔊 **Ambiance sonore**
-  - Musique de fond (toggle dans l’interface)
-  - Sons :
-    - clic
-    - drop des pions
-    - victoire
-    - début de partie
+### 🌐 Mode en ligne
+- Création de salle (code automatique ou personnalisé)
+- Rejoindre avec un code
+- Synchronisation continue (polling JSON)
+- Page de résultat partagée
+- Fonction **Revanche** (votes 0/2 → 2/2)
 
-- 🎨 **UI moderne**
-  - Design glassmorphism
-  - Animations de pions “glossy”
-  - Indicateurs de score
-  - Affichage du gagnant : `Victoire de <nom du joueur> !`
+### 💬 Mini-chat intégré
+- Chat en temps réel
+- Messages colorés selon le joueur (Rouge / Jaune)
+- Scroll automatique  
+- Requêtes légères
+
+### 🔊 Ambiance sonore
+- Musique de fond (toggle + sauvegarde)
+- Sons :
+  - clic
+  - dépôt
+  - gravité inversée
+  - victoire
+  - début de partie
+
+### 🎨 UI moderne
+- Glassmorphism
+- Grille responsive
+- Animations glossy
+- Effet visuel dynamique sur la page de démarrage
 
 ---
 
 ## 🧰 Stack technique
 
-- **Langage** : Go (Golang)
-- **Version minimale** : Go `1.21`
-- **Standard lib uniquement** :
-  - `net/http` pour le serveur
-  - `html/template` pour les pages
-  - pas de framework externe
-- Front :
-  - HTML / CSS pur
-  - Un peu de JavaScript pour :
-    - Musique
-    - Sons
-    - Mode online (polling)
-    - Chat
+| Domaine | Choix |
+|--------|-------|
+| Langage | Go (Golang) |
+| Minimum | Go **1.21+** |
+| Backend | `net/http` + `html/template` |
+| Frontend | HTML, CSS, JS vanilla |
+| Temps réel | Polling JSON |
+| Sessions | Cookies + mémoire |
+
+Aucune dépendance externe → fonctionne partout.
 
 ---
 
-## 🚀 Lancer le projet en local
+## 🚀 Installation & Lancement
 
-### 1. Prérequis
-
-- Go installé (version **1.21+**)
-  - Vérifier avec :
-    ```bash
-    go version
-    ```
-
-### 2. Cloner le repo
+### 1) Installer Go
+Vérifie ta version :
 
 ```bash
-git clone https://github.com/<ton-user>/<ton-repo>.git
-cd <ton-repo>
+go version
+Il faut Go 1.21 ou supérieur.
+
+2) Cloner le projet
+git clone https://github.com/el211/power4-web
+cd power4-web
+
+3) Lancer le serveur
+
+Méthode simple :
+
+go run .
+
+
+Ou compiler puis lancer :
+
+go build -o power4
+./power4
+
+
+Tu devrais avoir :
+
+Power4 BONUS listening on :8080
+
+4) Jouer 🎮
+
+Ouvre ton navigateur à l’adresse :
+
+👉 http://localhost:8080/
+
+📁 Structure du projet
+power4-web/
+ ├─ static/
+ │   ├─ style.css
+ │   ├─ js/
+ │   ├─ sounds/
+ │   └─ images/
+ ├─ templates/
+ │   ├─ base.html
+ │   ├─ start.html
+ │   ├─ game.html
+ │   └─ result.html
+ ├─ main.go
+ └─ README.md
